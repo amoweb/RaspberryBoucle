@@ -19,26 +19,43 @@ int main()
 
         midiOpenDevice(3, 2);
 
-        midiNoteOn(60, 100);
-        int pos = 0;
+beginRecord:
         while(true) {
-                // New score
-                if(inputAvailable()) {
-                        midiReadlast(&(record[pos%TAB_SIZE]));
-                        //record[pos].t ;
-                        pos++;
-                        //midiNoteOn(80, 100);
-                }
-                if(pos == 15) {
-                        int tStartPlay = Pt_Time(NULL);
-                        for(int i=0; i<pos; i++) {
-                                while(Pt_Time(NULL)-tStartPlay < record[i].t) {
-                                        // rien
+                // Record
+                int tStartRecord = 0;
+                int pos = 0;
+                while(true) {
+                        // New event
+                        if(inputAvailable()) {
+                                midiReadLast(&(record[pos%TAB_SIZE]));
+                                if(tStartRecord == 0) {
+                                        tStartRecord = record[pos%TAB_SIZE].t;
+                                        printf("Recording\n");
                                 }
-                                midiNoteOn(record[i].note, record[i].vol);
-                                i++;
+
+                                if(record[pos%TAB_SIZE].status == 176)
+                                        break;
+
+                                pos++;
                         }
-                        pos = 0;
                 }
+
+                // Play
+                printf("Playing\r\n");
+                int tStartPlay = Pt_Time(NULL);
+                struct Note note;
+                for(int i=0; i<pos; i++) {
+                        while(Pt_Time(NULL)-tStartPlay < record[i].t-tStartRecord) {
+                                //if(inputAvailable()) {
+                                //        midiReadLast(&note);
+                                //        //if(note.status == 176)
+                                //                //goto beginRecord;
+                                //}
+                                // rien
+                        }
+                        midiWrite(&record[i]);
+                        i++;
+                }
+                pos = 0;
         }
 }

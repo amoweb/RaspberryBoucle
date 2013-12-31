@@ -6,10 +6,11 @@
 #include <porttime.h>
 #include "midi.h"
 
-#define INPUT_BUFFER_SIZE 100
-#define OUTPUT_BUFFER_SIZE 0
+#define INPUT_BUFFER_SIZE 1000
+#define OUTPUT_BUFFER_SIZE 1000
+#define TIME_RESOLUTION_MS 1
 
-PmEvent outBuffer[1];
+PmEvent outBuffer[OUTPUT_BUFFER_SIZE];
 PmEvent inBuffer[INPUT_BUFFER_SIZE];
 
 PmStream *in, *out;
@@ -47,6 +48,9 @@ bool midiInit()
 
 void midiOpenDevice(int inId, int outId)
 {
+        // Initialize time
+        Pt_Start(TIME_RESOLUTION_MS, NULL, NULL);
+
         // Open input
         Pm_OpenInput(&in, inId, NULL, INPUT_BUFFER_SIZE, 
                         (PmTimestamp (*)(void *)) Pt_Time, NULL);
@@ -56,7 +60,6 @@ void midiOpenDevice(int inId, int outId)
         // Open output
         Pm_OpenOutput(&out, outId, NULL, OUTPUT_BUFFER_SIZE,
                         (PmTimestamp (*)(void *)) Pt_Time, NULL, 0);
-
 }
 
 bool inputAvailable()
@@ -77,6 +80,13 @@ void midiNoteOn(int note, int vol)
         Pm_Write(out, outBuffer, 1);
 }
 
+void midiWrite(struct Note *note)
+{
+        outBuffer[0].timestamp = Pt_Time(NULL);
+        outBuffer[0].message = Pm_Message(note->status, note->note, note->vol);
+        Pm_Write(out, outBuffer, 1);
+}
+
 
 void midiNoteOff(int note)
 {
@@ -85,8 +95,8 @@ void midiNoteOff(int note)
 
 void midiReadLast(struct Note *note)
 {
-        Pm_Read(in, inBuffer, 1);
         note->t = inBuffer[0].timestamp;
         note->note = Pm_MessageData1(inBuffer[0].message);
         note->vol = Pm_MessageData2(inBuffer[0].message);
+        note->status = Pm_MessageStatus(inBuffer[0].message);
 }
