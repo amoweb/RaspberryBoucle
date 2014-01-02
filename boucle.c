@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <porttime.h>
 #include "midi.h"
+#include "ihm.h"
 
 #define TAB_SIZE 1000
 
@@ -13,6 +14,8 @@ struct Note record[TAB_SIZE];
 int main()
 {
         printf("Boucle Midi - amoweb.fr\n");
+
+        IHMinit();
 
         if(midiInit())
                 exit(-1);
@@ -33,29 +36,34 @@ beginRecord:
                                         printf("Recording\n");
                                 }
 
-                                if(record[pos%TAB_SIZE].status == 176)
-                                        break;
-
                                 pos++;
                         }
+                        // User entry
+                        if(IHMuserEntry()){
+                                break;
+                        }
                 }
+                
+                printf("Recorded=%d t=%ld\n", pos, record[pos%TAB_SIZE].t-tStartRecord);
 
                 // Play
-                printf("Playing\r\n");
-                int tStartPlay = Pt_Time(NULL);
-                struct Note note;
-                for(int i=0; i<pos; i++) {
-                        while(Pt_Time(NULL)-tStartPlay < record[i].t-tStartRecord) {
-                                //if(inputAvailable()) {
-                                //        midiReadLast(&note);
-                                //        //if(note.status == 176)
-                                //                //goto beginRecord;
-                                //}
-                                // rien
+                while(true) {
+                        if(pos == 0)
+                                goto beginRecord;
+                        printf("Playing\r\n");
+                        int tStartPlay = Pt_Time(NULL);
+                        for(int i=0; i<pos; i++) {
+                                while(Pt_Time(NULL)-tStartPlay < record[i].t-tStartRecord) {
+                                        if(IHMuserEntry())
+                                                goto beginRecord;
+                                        midiFlush();
+                                }
+
+                                midiWrite(&record[i]);
+                                i++;
                         }
-                        midiWrite(&record[i]);
-                        i++;
                 }
                 pos = 0;
+                midiFlush();
         }
 }

@@ -13,10 +13,17 @@
 PmEvent outBuffer[OUTPUT_BUFFER_SIZE];
 PmEvent inBuffer[INPUT_BUFFER_SIZE];
 
+int nbEventWaiting;
+int iEventWaiting;
+
 PmStream *in, *out;
 bool midiInit()
 {
         Pm_Initialize();
+
+        // Initialize buffer
+        nbEventWaiting = 0;
+        iEventWaiting = 0;
 
         int portIn = -1;
         int portOut = -1;
@@ -64,7 +71,7 @@ void midiOpenDevice(int inId, int outId)
 
 bool inputAvailable()
 {
-        if(Pm_Poll(in) == 1)
+        if(Pm_Poll(in) == 1 || nbEventWaiting > 0)
                 return true;
         else if(Pm_Poll(in) == 0)
                 return false;
@@ -95,8 +102,21 @@ void midiNoteOff(int note)
 
 void midiReadLast(struct Note *note)
 {
-        note->t = inBuffer[0].timestamp;
-        note->note = Pm_MessageData1(inBuffer[0].message);
-        note->vol = Pm_MessageData2(inBuffer[0].message);
-        note->status = Pm_MessageStatus(inBuffer[0].message);
+        if(nbEventWaiting == 0) {
+                iEventWaiting = 0;
+                nbEventWaiting = Pm_Read(in, inBuffer, 1);
+        }
+        note->t = inBuffer[iEventWaiting].timestamp;
+        note->note = Pm_MessageData1(inBuffer[iEventWaiting].message);
+        note->vol = Pm_MessageData2(inBuffer[iEventWaiting].message);
+        note->status = Pm_MessageStatus(inBuffer[iEventWaiting].message);
+        nbEventWaiting--;
+        iEventWaiting++;
+}
+
+void midiFlush()
+{
+        nbEventWaiting = 0;
+        iEventWaiting = 0;
+        Pm_Read(in, inBuffer, 1);
 }

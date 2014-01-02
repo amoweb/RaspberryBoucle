@@ -19,5 +19,6 @@ void midiNoteOn(int note, int velocity);
 void midiNoteOff(int note);
 void midiReadLast(struct Note *note);
 void midiWrite(struct Note *note);
+void midiFlush();
 
 #endif
